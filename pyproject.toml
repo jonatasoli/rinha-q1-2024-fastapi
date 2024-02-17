@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "rinha-fastapi"
+version = "0.1.0"
+description = "MIT"
+authors = ["Jonatas Oliveira <contact@jonatasoliveira.dev>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.taskipy.tasks]
+run = 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8000 --reload'
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.109.2"
+pydantic = "^2.6.1"
+taskipy = "^1.12.2"
+uvicorn = "^0.27.1"
+asyncpg = "^0.29.0"
+psycopg2-binary = "^2.9.9"
+sqlalchemy = "^2.0.27"
+
+
+[tool.poetry.group.dev.dependencies]
+ipdb = "^0.13.13"
+blue = "^0.9.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
