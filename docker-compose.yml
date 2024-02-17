@@ -20,7 +20,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: "100MB"
+          memory: "115MB"
 
   api2:
     <<: *app1
@@ -45,7 +45,7 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: "110MB"
+          memory: "115MB"
 
   db:
     image: docker.io/postgres:16
@@ -63,4 +63,4 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: "246MB"
+          memory: "205MB"
