@@ -27,8 +27,9 @@ sqlalchemy_database_url = 'postgresql://rinha:rinha@localhost:5432/rinha'
 
 engine = create_engine(
         sqlalchemy_database_url,
-        pool_size=50,
-        max_overflow=5,
+        pool_size=45,
+        max_overflow=40,
+        pool_pre_ping=True,
 )
 
 

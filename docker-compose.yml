@@ -7,11 +7,11 @@ services:
       dockerfile: ./Dockerfile
     hostname: api1
     network_mode: host
-    entrypoint: 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8000 --workers 2 --log-level critical'
+    entrypoint: 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8000 --workers 1 --log-level critical'
     environment:
       PORT: 8000
       DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
-      MAX_CONNECTIONS: 80
+      MAX_CONNECTIONS: 10
     depends_on:
       - db
     expose:
@@ -20,16 +20,16 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: "200MB"
+          memory: "180MB"
 
   api2:
     <<: *app1
     hostname: api2
-    entrypoint: 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8001 --workers 2 --log-level critical'
+    entrypoint: 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8001 --workers 1 --log-level critical'
     environment:
       PORT: 8001
       DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
-      MAX_CONNECTIONS: 40
+      MAX_CONNECTIONS: 10
 
   nginx:
     image: docker.io/nginx:latest
@@ -44,14 +44,14 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.50"
-          memory: "100MB"
+          cpus: "0.10"
+          memory: "40MB"
 
   db:
     image: docker.io/postgres:16
     volumes:
       - ./db:/docker-entrypoint-initdb.d
-    command: postgres -c log_min_messages=FATAL -c max_connections=400 -c shared_buffers=100MB -c fsync=off -c synchronous_commit=off -c checkpoint_timeout=1d -c full_page_writes=false
+    command: postgres -c log_min_messages=FATAL -c max_connections=100 -c shared_buffers=128MB -c fsync=off -c synchronous_commit=off -c checkpoint_timeout=1d -c full_page_writes=false
     network_mode: host
     environment:
       POSTGRES_USER: rinha
@@ -62,5 +62,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.50"
+          cpus: "0.40"
           memory: "150MB"
