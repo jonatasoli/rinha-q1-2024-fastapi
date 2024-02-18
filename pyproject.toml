@@ -23,6 +23,9 @@ sqlalchemy = "^2.0.27"
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.13"
 blue = "^0.9.1"
+ruff-lsp = "^0.0.52"
+anyio = "^4.2.0"
+pyright = "^1.1.350"
 
 [build-system]
 requires = ["poetry-core"]
