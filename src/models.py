@@ -9,6 +9,7 @@ from sqlalchemy import String
 class Base(DeclarativeBase):
     pass
 
+
 class Clients(Base):
     __tablename__ = 'clients'
 
@@ -18,9 +19,8 @@ class Clients(Base):
     criado_em: Mapped[datetime] = mapped_column(default=datetime.now())
 
 
-
 class Transactions(Base):
-    
+
     __tablename__ = 'transactions'
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -29,5 +29,3 @@ class Transactions(Base):
     descricao = mapped_column(String(10))
     tipo = mapped_column(String(1))
     realizado_em: Mapped[datetime] = mapped_column(default=datetime.now())
-
-
