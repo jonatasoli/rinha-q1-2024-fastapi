@@ -1,28 +1,16 @@
 from datetime import datetime
+import enum
 from typing import List
-from fastapi import APIRouter, FastAPI, status, HTTPException, Depends
+from fastapi import FastAPI, status, HTTPException, Depends
 from pydantic import parse_obj_as
-from pydantic import BaseModel, Field, ConfigDict, validator
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from src.models import Clients, Transactions
-from sqlalchemy import select, desc
+from sqlalchemy import QueuePool, select, desc
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.ext.asyncio.session import AsyncSession
 
 
-main = APIRouter()
-
-
-def create_app() -> FastAPI:
-    """Factory function."""
-    app = FastAPI()
-    app.include_router(
-        main,
-        responses={status.HTTP_404_NOT_FOUND: {'description': 'Not found'}},
-    )
-    app.mount('/', main)
-    return app
-
+main = FastAPI()
 
 sqlalchemy_database_url = (
     'postgresql+asyncpg://rinha:rinha@localhost:5432/rinha'
@@ -30,29 +18,25 @@ sqlalchemy_database_url = (
 
 async_engine = create_async_engine(
     sqlalchemy_database_url,
-    pool_size=45,
-    max_overflow=40,
-    pool_pre_ping=True,
+    pool_size=25,
+    max_overflow=20,
+    poolclass=QueuePool
 )
 
 
-def get_async_session() -> AsyncSession:
+def get_async_session():
     return async_sessionmaker(async_engine, expire_on_commit=False)
+
+
+class tipo_transacao(enum.StrEnum):
+    c='c'
+    d='d'
 
 
 class Transaction(BaseModel):
     valor: int
-    tipo: str = Field(max_length=1)
+    tipo: tipo_transacao
     descricao: str = Field(min_length=1, max_length=10)
-
-    @validator('tipo')
-    def validate_tipo(cls, v):
-        if v in ['c', 'd']:
-            return v
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail='Wrong Operation',
-        )
 
 
 class TransactionResponse(BaseModel):
@@ -87,14 +71,10 @@ class ExtractResponse(BaseModel):
 async def transaction(
     id: int,
     transaction: Transaction,
-    db: async_sessionmaker = Depends(get_async_session),
-) -> TransactionResponse:
+    db = Depends(get_async_session),
+):
     async with db() as session:
-        db_client = await session.scalar(
-            select(Clients)
-            .where(Clients.id == id)
-            .with_for_update(nowait=False)
-        )
+        db_client = await session.get(Clients, id, with_for_update=True)
         if not db_client:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -118,7 +98,7 @@ async def transaction(
         )
         session.add(db_transaction)
         await session.flush()
-        db_client.saldo = _new_balance
+        db_client.saldo=_new_balance
         await session.commit()
 
     return TransactionResponse(limite=db_client.limite, saldo=db_client.saldo)
@@ -127,17 +107,12 @@ async def transaction(
 @main.get(
     '/clientes/{id}/extrato',
     status_code=status.HTTP_200_OK,
-    response_model=ExtractResponse,
 )
 async def extract(
-    id: int, db: async_sessionmaker = Depends(get_async_session)
-) -> ExtractResponse:
-    async with db() as session:
-        db_client = await session.scalar(
-            select(Clients)
-            .where(Clients.id == id)
-            .with_for_update(nowait=False)
-        )
+    id: int, db = Depends(get_async_session)
+):
+    async with db.begin() as session:
+        db_client = await session.get(Clients, id, with_for_update=True)
         if not db_client:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

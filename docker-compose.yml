@@ -1,35 +1,35 @@
 version: "3.8"
 
 services:
-  api1: &app1
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    hostname: api1
-    network_mode: host
-    entrypoint: 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8000 --workers 1 --log-level critical'
-    environment:
-      PORT: 8000
-      DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
-      MAX_CONNECTIONS: 10
-    depends_on:
-      - db
-    expose:
-      - "8000"
-  deploy:
-    resources:
-      limits:
-        cpus: "0.45"
-        memory: "165MB"
+#   api1: &app1
+#     build:
+#       context: .
+#       dockerfile: ./Dockerfile
+#     hostname: api1
+#     network_mode: host
+#     entrypoint: 'uvicorn src.main:main --host 0.0.0.0 --port 8000 --workers 1 --log-level critical'
+#     environment:
+#       PORT: 8000
+#       DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
+#       MAX_CONNECTIONS: 10
+#     depends_on:
+#       - db
+#     expose:
+#       - "8000"
+#   deploy:
+#     resources:
+#       limits:
+#         cpus: "0.45"
+#         memory: "165MB"
 
-  api2:
-    <<: *app1
-    hostname: api2
-    entrypoint: 'uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8001 --workers 1 --log-level critical'
-    environment:
-      PORT: 8001
-      DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
-      MAX_CONNECTIONS: 10
+#   api2:
+#     <<: *app1
+#     hostname: api2
+#     entrypoint: 'uvicorn src.main:main --host 0.0.0.0 --port 8001 --workers 1 --log-level critical'
+#     environment:
+#       PORT: 8001
+#       DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
+#       MAX_CONNECTIONS: 10
 
   nginx:
     image: docker.io/nginx:latest
@@ -51,7 +51,7 @@ services:
     image: docker.io/postgres:16
     volumes:
       - ./db:/docker-entrypoint-initdb.d
-    command: postgres -c log_min_messages=FATAL -c max_connections=2000 -c shared_buffers=512MB -c fsync=off -c synchronous_commit=off -c checkpoint_timeout=1d -c full_page_writes=false
+    command: postgres -c log_min_messages=FATAL -c max_connections=200 -c shared_buffers=128MB -c fsync=off -c synchronous_commit=off -c checkpoint_timeout=1d -c full_page_writes=false
     network_mode: host
     environment:
       POSTGRES_USER: rinha
