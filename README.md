@@ -10,6 +10,10 @@
 ## Como executar esse projeto?
 
 Simplesmente executar `docker-compose up --build` e tudo vai ser executado.
+Se for executar só o app sem o docker você pode fazer (com o poetry instalado):
+`poetry install`
+`poetry shell`
+`task run`
 
 ### Observações
 
