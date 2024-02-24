@@ -1,15 +1,32 @@
 from datetime import datetime
-from functools import lru_cache
 import enum
+from functools import lru_cache
 from typing import List
 from fastapi import FastAPI, status, HTTPException, Depends
 from pydantic import parse_obj_as
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.sql.elements import Cast
 from src.models import Clients, Transactions
 from sqlalchemy import QueuePool, select, desc, case, update
 from sqlalchemy.ext.asyncio import create_async_engine
+
+
+clients = {}
+
+
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://746822804bb24d9871796e92aa8ee6be@o281685.ingest.sentry.io/4506801568088064",
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    traces_sample_rate=1.0,
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate=1.0,
+    enable_tracing=True
+)
 
 
 main = FastAPI()
@@ -61,10 +78,15 @@ class ExtractResponse(BaseModel):
     saldo: Balance
     ultimas_transacoes: list[LastTransaction]
 
-
-@lru_cache
-async def get_client_by_id(id, db):
-    return await db.scalar(select(Clients.id).where(Clients.id == id))
+async def get_client_by_id():
+    global clients
+    if clients:
+        return clients
+    session = get_async_session()
+    async with session() as db:
+        _clients = await db.scalars(select(Clients))
+        clients = {client.id: client.limite for client in _clients.all()}
+        return clients
 
 
 @main.post(
@@ -78,29 +100,14 @@ async def transaction(
     db=Depends(get_async_session),
 ):
     async with db() as session:
-        _client = await get_client_by_id(id, session)
-        if not _client:
+        client_db = await session.get(Clients, id, with_for_update=True)
+        if not client_db:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Client not exist',
             )
-        if transaction.tipo == 'd':
-            query = (
-                update(Clients)
-                .where(Clients.id == id, Clients.saldo - transaction.valor < -Clients.limite)
-                .values(saldo=Clients.saldo - transaction.valor)
-                .returning(Clients.limite, Clients.saldo)
-            )
-        else:
-            query = (
-                update(Clients)
-                .where(Clients.id == id)
-                .values(saldo=Clients.saldo + transaction.valor)
-                .returning(Clients.limite, Clients.saldo)
-            )
-        query_execution = await session.execute(query)
-        _row = query_execution.fetchone()
-        if not _row:
+        _new_balance = client_db.saldo + transaction.valor if transaction.tipo == 'd' else client_db.saldo - transaction.valor
+        if transaction.tipo == 'd' and _new_balance < -client_db.limite:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Client not found or concurrent update occurred',
@@ -114,7 +121,7 @@ async def transaction(
         session.add(db_transaction)
         await session.commit()
 
-        return TransactionResponse(limite=_row[0], saldo=_row[1])
+        return TransactionResponse(limite=client_db.limite, saldo=client_db.saldo)
 
 
 @main.get(
@@ -123,23 +130,23 @@ async def transaction(
 )
 async def extract(id: int, db=Depends(get_async_session)):
     async with db.begin() as session:
-        db_client = await session.get(Clients, id)
-        if not db_client:
+        client_db = await session.get(Clients, id, with_for_update=True)
+        if not client_db:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Client not exist',
             )
-        _balance = Balance(
-            total=db_client.saldo,
-            limite=db_client.limite,
-            data_extrato=datetime.now(),
-        )
-
         db_transactions = await session.scalars(
             select(Transactions)
             .where(Transactions.client_id == id)
             .order_by(desc(Transactions.id))
             .limit(10)
         )
-    transactions = parse_obj_as(List[LastTransaction], db_transactions.all())
+        _transactions = db_transactions.all()
+        _balance = Balance(
+            total=client_db.saldo,
+            limite=client_db.limite,
+            data_extrato=datetime.now(),
+        )
+        transactions = parse_obj_as(List[LastTransaction], _transactions)
     return ExtractResponse(saldo=_balance, ultimas_transacoes=transactions)

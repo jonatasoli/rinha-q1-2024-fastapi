@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy import ForeignKey
@@ -25,6 +25,7 @@ class Transactions(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     client_id: Mapped[int] = mapped_column(ForeignKey('clients.id'))
+    client = relationship(Clients,foreign_keys=[client_id])
     valor: Mapped[int]
     descricao = mapped_column(String(10))
     tipo = mapped_column(String(1))
