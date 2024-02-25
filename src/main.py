@@ -92,6 +92,7 @@ async def transaction(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Client not found or concurrent update occurred',
             )
+        client_db.saldo = _new_balance
         session.add(db_transaction)
         await session.commit()
 
